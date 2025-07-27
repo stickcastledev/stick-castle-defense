@@ -8,6 +8,11 @@
 [node name="Main" type="Node2D"]
 script = ExtResource(1)
 
+# Background sprite to render different environments. The texture will be
+# assigned dynamically in the script based on the current wave.
+[node name="Background" type="Sprite2D" parent="."]
+position = Vector2(240, 270)
+
 # Castle sprite on the left side of the battlefield
 [node name="Castle" type="Sprite2D" parent="."]
 texture = ExtResource(2)
@@ -62,3 +67,16 @@ text = "Upgrade Archer"
 
 [node name="UpgradeMageButton" type="Button" parent="UpgradeButtons"]
 text = "Upgrade Mage"
+
+# Horizontal container for spell buttons (player-cast spells)
+[node name="SpellButtons" type="HBoxContainer" parent="HUD"]
+position = Vector2(10, 160)
+
+[node name="FireballButton" type="Button" parent="SpellButtons"]
+text = "Fireball"
+
+[node name="IceButton" type="Button" parent="SpellButtons"]
+text = "Ice"
+
+[node name="PoisonButton" type="Button" parent="SpellButtons"]
+text = "Poison"
