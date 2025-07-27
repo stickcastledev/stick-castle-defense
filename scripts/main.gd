@@ -15,6 +15,13 @@ extends Node2D
 @onready var archer_button = hud.get_node("Buttons/ArcherButton")
 @onready var mage_button = hud.get_node("Buttons/MageButton")
 
+# Spell buttons for casting special abilities
+@onready var fireball_button = hud.get_node("SpellButtons/FireballButton")
+@onready var ice_button = hud.get_node("SpellButtons/IceButton")
+@onready var poison_button = hud.get_node("SpellButtons/PoisonButton")
+
+@onready var background = $Background
+
 # Upgrade buttons for upgrading each unit type.
 @onready var upgrade_sword_button = hud.get_node("UpgradeButtons/UpgradeSwordButton")
 @onready var upgrade_archer_button = hud.get_node("UpgradeButtons/UpgradeArcherButton")
@@ -57,11 +64,44 @@ var spawn_timer : float = 0.0
 var spawn_count : int = 0
 var game_over : bool = false
 
+# Cooldown durations for spells (in seconds)
+var spell_durations = {
+    "fireball": 5.0,
+    "ice": 8.0,
+    "poison": 10.0
+}
+
+# Current cooldown timers. When <= 0, spell is ready to cast.
+var spell_cooldowns = {
+    "fireball": 0.0,
+    "ice": 0.0,
+    "poison": 0.0
+}
+
+# Preload background textures for different environments
+var backgrounds = [
+    preload("res://sprites/background_desert.png"),
+    preload("res://sprites/background_snow.png"),
+    preload("res://sprites/background_forest.png")
+]
+
+# Track enemies currently poisoned and remaining poison duration
+var poisoned_enemies : Dictionary = {}
+
 func _ready() -> void:
     # Connect button signals for unit spawning
     sword_button.connect("pressed", Callable(self, "_on_sword_pressed"))
     archer_button.connect("pressed", Callable(self, "_on_archer_pressed"))
     mage_button.connect("pressed", Callable(self, "_on_mage_pressed"))
+
+    # Connect spell buttons to handlers
+    fireball_button.connect("pressed", Callable(self, "_on_fireball_pressed"))
+    ice_button.connect("pressed", Callable(self, "_on_ice_pressed"))
+    poison_button.connect("pressed", Callable(self, "_on_poison_pressed"))
+
+    # Set initial background
+    if backgrounds.size() > 0:
+        background.texture = backgrounds[0]
 
     # Connect upgrade button signals for upgrading units
     upgrade_sword_button.connect("pressed", Callable(self, "_on_upgrade_sword_pressed"))
@@ -78,6 +118,10 @@ func start_wave() -> void:
     spawn_timer = 0.0
     # Display message for the new wave
     show_message("Wave %d" % (current_wave + 1))
+
+    # Change background based on current wave to create variety
+    if backgrounds.size() > 0:
+        background.texture = backgrounds[current_wave % backgrounds.size()]
 
 func update_ui() -> void:
     # Refresh coins and castle health labels
@@ -111,6 +155,29 @@ func _process(delta: float) -> void:
     handle_combat(delta)
     # Check if any enemies reached the castle
     handle_castle_collisions()
+
+    # Update spell cooldowns
+    for key in spell_cooldowns.keys():
+        if spell_cooldowns[key] > 0:
+            spell_cooldowns[key] = max(0.0, spell_cooldowns[key] - delta)
+
+    # Apply poison damage over time to poisoned enemies
+    var to_remove := []
+    for enemy in poisoned_enemies.keys():
+        # Ensure enemy still exists
+        if not enemies_container.has_node(enemy.get_path()):
+            to_remove.append(enemy)
+            continue
+        var remaining = poisoned_enemies[enemy]
+        # Deal 5 damage per second
+        enemy.health -= 5 * delta
+        remaining -= delta
+        if remaining <= 0 or enemy.health <= 0:
+            to_remove.append(enemy)
+        else:
+            poisoned_enemies[enemy] = remaining
+    for e in to_remove:
+        poisoned_enemies.erase(e)
 
 func handle_combat(delta: float) -> void:
     # Attack interactions between all friendly units and enemies
@@ -266,3 +333,52 @@ func _on_upgrade_mage_pressed() -> void:
         update_ui()
     else:
         show_message("Not enough coins to upgrade Mage (cost: %d)" % cost)
+
+# --- Spell handlers ---
+func _on_fireball_pressed() -> void:
+    # Single‑target high‑damage spell. Targets the nearest enemy.
+    if spell_cooldowns["fireball"] > 0:
+        show_message("Fireball is on cooldown")
+        return
+    var target : Node = null
+    for enemy in enemies_container.get_children():
+        if target == null or enemy.position.x < target.position.x:
+            target = enemy
+    if target != null:
+        target.health -= 40
+        spell_cooldowns["fireball"] = spell_durations["fireball"]
+        show_message("Fireball hits!")
+    else:
+        show_message("No enemies to target")
+
+func _on_ice_pressed() -> void:
+    # Area‑of‑effect spell: damages all enemies and slows them.
+    if spell_cooldowns["ice"] > 0:
+        show_message("Ice spell is on cooldown")
+        return
+    var affected := false
+    for enemy in enemies_container.get_children():
+        enemy.health -= 20
+        # Slow enemy by reducing its speed
+        enemy.speed *= 0.7
+        affected = true
+    if affected:
+        spell_cooldowns["ice"] = spell_durations["ice"]
+        show_message("Ice storm slows enemies!")
+    else:
+        show_message("No enemies to affect")
+
+func _on_poison_pressed() -> void:
+    # Damage‑over‑time spell: poisons all enemies for 6 seconds.
+    if spell_cooldowns["poison"] > 0:
+        show_message("Poison spell is on cooldown")
+        return
+    var affected := false
+    for enemy in enemies_container.get_children():
+        poisoned_enemies[enemy] = 6.0
+        affected = true
+    if affected:
+        spell_cooldowns["poison"] = spell_durations["poison"]
+        show_message("Poison cloud damages enemies!")
+    else:
+        show_message("No enemies to poison")
