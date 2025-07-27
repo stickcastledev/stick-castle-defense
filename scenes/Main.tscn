@@ -49,3 +49,16 @@ text = "Archer (15)"
 
 [node name="MageButton" type="Button" parent="Buttons"]
 text = "Mage (20)"
+
+# Horizontal container for upgrade buttons
+[node name="UpgradeButtons" type="HBoxContainer" parent="HUD"]
+position = Vector2(10, 120)
+
+[node name="UpgradeSwordButton" type="Button" parent="UpgradeButtons"]
+text = "Upgrade Sword"
+
+[node name="UpgradeArcherButton" type="Button" parent="UpgradeButtons"]
+text = "Upgrade Archer"
+
+[node name="UpgradeMageButton" type="Button" parent="UpgradeButtons"]
+text = "Upgrade Mage"
